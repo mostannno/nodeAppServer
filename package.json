@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/mostannno/nodeAppServer/issues"
   },
-  "homepage": "https://github.com/mostannno/nodeAppServer#readme"
+  "homepage": "https://github.com/mostannno/nodeAppServer#readme",
+  "dependencies": {
+    "mongoose": "^5.3.14"
+  }
 }
