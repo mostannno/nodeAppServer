@@ -62,6 +62,11 @@ app.post('/student/login', (req, res) => {
       res.json({
         status: SUCCESS
       })
+    } else {
+      res.json({
+        status: FAIL,
+        extraMessage: 'wrong password'
+      });
     }
   });
 });
