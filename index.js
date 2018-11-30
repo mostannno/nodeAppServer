@@ -32,7 +32,7 @@ app.use(cookieParser());
 mongooseInit();
 appInit(app);
 
-app.post('/student/login', async (req, res) => {
+app.post('/student/login', (req, res) => {
   // 参数校验
   let manager = req.body;
   if (!manager.pwd || !manager.name) {
@@ -41,30 +41,29 @@ app.post('/student/login', async (req, res) => {
     return;
   }
 
-  //查询是否存在
-  try {
-    await app.managerModel.find({ name: manager.name }, (err, results) => {
-      if (err) throw new Error('login failed');
-      if (!results.length) {
-        res.json({
-          status: FAIL,
-          extraMessage: 'manager not found'
-        });
-        return;
-      }
-      const hmac = crypto.createHmac('sha256', results[0].key);
-      if (hmac.update(manager.pwd).digest('hex') === results[0].pwd) {
-        const token = encrypt(manager.name, LOGIN_KEY);
-        res.cookie('token', token);
-        res.json({
-          status: SUCCESS
-        })
-      }
-    });
-  } catch(e) {
-    res.status(500);
-    res.send(null);
-  }
+  app.managerModel.find({ name: manager.name }, (err, results) => {
+    if (err) {
+      res.status(500);
+      res.send(null);
+      return;
+    };
+    if (!results.length) {
+      res.json({
+        status: FAIL,
+        extraMessage: 'manager not found'
+      });
+      return;
+    }
+
+    const hmac = crypto.createHmac('sha256', results[0].key);
+    if (hmac.update(manager.pwd).digest('hex') === results[0].pwd) {
+      const token = encrypt(manager.name, LOGIN_KEY);
+      res.cookie('token', token);
+      res.json({
+        status: SUCCESS
+      })
+    }
+  });
 });
 
 app.post('/student/submit', async (req, res) => {
@@ -77,53 +76,37 @@ app.post('/student/submit', async (req, res) => {
     return;
   }
 
-  // 检查是否已经有同名用户存在
-  let flag = false;
-  try {
-    await app.managerModel.find({ name: manager.get('name') }, (err, results) => {
-      if (err) throw new Error(err);
-      if (results.length) {
-        res.send({
-          status: FAIL,
-          extraMessage: 'user exist'
-        });
-        flag = true;
-      }
-    });
-  } catch(e) {
-    res.status(500);
-    res.send(null);
-    return;
-  }
-  if (flag) return;
-
-  // 加密
+  // 加密保存
   const key = getRandomKey();
   const hmac = crypto.createHmac('sha256', key);
   const pwd = hmac.update(manager.pwd).digest('hex');
   manager = manager.set('key', key).set('pwd', pwd);
   try {
-    await app.managerModel.save(manager.toJS());
+    const resp = await app.managerModel.saveManager(manager.toJS());
+    if (resp) throw resp;
     res.json({ status: SUCCESS });
   } catch(e) {
+    if (e.message = app.alreadyExist) {
+      res.json({
+        status: FAIL,
+        extraMessage: app.alreadyExist
+      });
+      return;
+    }
     res.status(500);
     res.send(null);
   }
 });
 
-app.get('/student/getAllUser', async (req, res) => {
-  let users = null;
-  try {
-    await app.userModel.find({}, (err, results) => {
-      if (err) throw new Error('getAllUser failed');
-      users = results;
-    });
-  } catch(e) {
-    res.status(500);
-    res.send(null);
-    return;
-  }
-  res.json(users);
+app.get('/student/getAllUser', (req, res) => {
+  app.userModel.find({}, (err, results) => {
+      if (err) {
+        res.status(500);
+        res.send(null);
+        return;
+      }
+      res.json(results);
+  });
 });
 
 app.post('/student/deleteUser', (req, res) => {
@@ -132,7 +115,7 @@ app.post('/student/deleteUser', (req, res) => {
 });
 
 app.post('/student/addUser', async (req, res) => {
-  console.log(req.cookies);
+  console.log('cookies', req.signedCookies, req.cookies.token);
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -141,40 +124,22 @@ app.post('/student/addUser', async (req, res) => {
     return;
   }
 
-  // 检查是否已经有相同学号
-  let flag = false;
-  try {
-    await app.userModel.find({ studentNumber: user.get('studentNumber') }, (err, results) => {
-      if (err) throw new Error(err);
-      if (results.length) {
-        res.send({
-          status: FAIL,
-          extraMessage: 'repetition studentNumber'
-        });
-        flag = true;
-      }
-    });
-  } catch(e) {
-    res.status(500);
-    res.send(null);
-    return;
-  }
-  if (flag) return;
-
   // 保存
   try {
-    const res = await app.userModel.save(user.toJS());
-    if (res) throw res;
+    const resp = await app.userModel.saveUser(user.toJS());
+    if (resp) throw resp;
+    res.json({ status: SUCCESS });
   } catch(e) {
+    if (e.message = app.alreadyExist) {
+      res.json({
+        status: FAIL,
+        extraMessage: app.alreadyExist
+      });
+      return;
+    }
     res.status(500);
-    res.json({
-      status: FAIL
-    });
-    return;
+    res.json({ status: FAIL });
   }
-  res.json({
-    status: SUCCESS
-  });
 });
 
 const server = app.listen(8080);

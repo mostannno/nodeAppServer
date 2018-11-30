@@ -9,15 +9,18 @@ const mongoError = 'Mongod Error';
 const error = errType => new Error(errType); 
 
 const userModel = mongoose.model('User', UserSchema);
-userModel.save = (User) => {
-  userModel.find({ name: User.name} , (err, result) => {
-    if (err) return error(searchError);
-    if (result.length) return error(alreadyExist);
+userModel.saveUser = async (User) => {
+  let Err = false;
+  await userModel.find({ studentNumber: User.studentNumber} , (err, result) => {
+    if (err) Err =  error(searchError);
+    if (result.length) Err = error(alreadyExist);
   });
+  if (Err) return Err;
   const user = new userModel(User);
-  user.save((err) => {
-    if (err) return error(mongoError);
+  await user.save((err) => {
+    if (err) Err = error(mongoError);
   });
+  if (Err) return Err;
 };
 
 userModel.delete = (id) => {
@@ -44,19 +47,23 @@ userModel.updateUser = (id, data) => {
 
 
 const managerModel = mongoose.model('Manager', ManagerSchema);
-managerModel.save = (Manager) => {
-  managerModel.find({ name: Manager.name }, (err, result) => {
-    if (err) return error(searchError);
-    if (result.length) return error(alreadyExist);
+managerModel.saveManager = async (Manager) => {
+  let Err = false;
+  await managerModel.find({ name: Manager.name }, (err, result) => {
+    if (err) Err = error(searchError);
+    if (result.length) Err = error(alreadyExist);
   });
+  if (Err) return Err;
   const manager = new managerModel(Manager);
-  manager.save((err) => {
-    if (err) return error(mongoError);
+  await manager.save((err) => {
+    if (err) Err = error(mongoError);
   });
+  if (Err) return Err;
 }
 
 
 module.exports = (app) => {
+  app.alreadyExist = alreadyExist;
   app.userModel = userModel;
   app.managerModel = managerModel;
 }
