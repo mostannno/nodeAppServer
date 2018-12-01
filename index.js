@@ -18,18 +18,18 @@ const INVALIE_TOKEN = 'token invalid';
 const app = express();
 
 // 因为是nginx代理的请求 所以不需要在这里设置
-// app.use('*',function (req, res, next) {
-//   res.header('Access-Control-Allow-Origin', '*'); 
-//   res.header('Access-Control-Allow-Credentials', 'true'); 
-//   res.header('Access-Control-Allow-Headers', 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type');
-//   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-//   if (req.method == 'OPTIONS') {
-//     res.status(200);
-//     res.send(null);
-//   } else {
-//     next();
-//   }
-// });
+app.use('*',function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*'); 
+  res.header('Access-Control-Allow-Credentials', 'true'); 
+  res.header('Access-Control-Allow-Headers', 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type');
+  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  if (req.method == 'OPTIONS') {
+    res.status(200);
+    res.send(null);
+  } else {
+    next();
+  }
+});
 app.use(bodyParser.json());
 app.use(cookieParser());
 mongooseInit();
@@ -153,8 +153,8 @@ app.get('/student/getAllUser', (req, res) => {
 });
 
 app.post('/student/deleteUser', async (req, res) => {
-  const token = req.cookies.token;
-  if (!checkToken(token)) {
+  const token = await checkToken(req.cookies.token);
+  if (!token) {
     res.json({
       status: FAIL,
       extraMessage: INVALIE_TOKEN
@@ -168,8 +168,8 @@ app.post('/student/deleteUser', async (req, res) => {
 });
 
 app.post('/student/updateUser', async (req, res) => {
-  const token = req.cookies.token;
-  if (!checkToken(token)) {
+  const token = await checkToken(req.cookies.token);
+  if (!token) {
     res.json({
       status: FAIL,
       extraMessage: INVALIE_TOKEN
@@ -190,8 +190,8 @@ app.post('/student/updateUser', async (req, res) => {
 });
 
 app.post('/student/addUser', async (req, res) => {
-  const token = req.cookies.token;
-  if (!checkToken(token)) {
+  const token = await checkToken(req.cookies.token);
+  if (!token) {
     res.json({
       status: FAIL,
       extraMessage: INVALIE_TOKEN
