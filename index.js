@@ -32,6 +32,18 @@ app.use('*',function (req, res, next) {
 });
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(['/student/addUser', '/student/deleteUser', '/student/updateUser'], (req, res, next) => {
+  const token = await checkToken(req.cookies.token);
+  if (!token) {
+    res.json({
+      status: FAIL,
+      extraMessage: INVALIE_TOKEN
+    });
+    return;
+  }
+  next();
+});
+
 mongooseInit();
 appInit(app);
 
@@ -153,14 +165,6 @@ app.get('/student/getAllUser', (req, res) => {
 });
 
 app.post('/student/deleteUser', async (req, res) => {
-  const token = await checkToken(req.cookies.token);
-  if (!token) {
-    res.json({
-      status: FAIL,
-      extraMessage: INVALIE_TOKEN
-    });
-    return;
-  }
   const { studentNumber } = req.body;
 
   const resp = await app.userModel.deleteUser(studentNumber);
@@ -168,15 +172,6 @@ app.post('/student/deleteUser', async (req, res) => {
 });
 
 app.post('/student/updateUser', async (req, res) => {
-  const token = await checkToken(req.cookies.token);
-  if (!token) {
-    res.json({
-      status: FAIL,
-      extraMessage: INVALIE_TOKEN
-    });
-    return;
-  }
-
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -190,15 +185,6 @@ app.post('/student/updateUser', async (req, res) => {
 });
 
 app.post('/student/addUser', async (req, res) => {
-  const token = await checkToken(req.cookies.token);
-  if (!token) {
-    res.json({
-      status: FAIL,
-      extraMessage: INVALIE_TOKEN
-    });
-    return;
-  }
-
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
