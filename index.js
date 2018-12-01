@@ -154,6 +154,13 @@ app.get('/student/getAllUser', (req, res) => {
 
 app.post('/student/deleteUser', async (req, res) => {
   const token = req.cookies.token;
+  if (!checkToken(token)) {
+    res.json({
+      status: FAIL,
+      extraMessage: INVALIE_TOKEN
+    });
+    return;
+  }
   const { studentNumber } = req.body;
 
   const resp = await app.userModel.deleteUser(studentNumber);
@@ -161,6 +168,15 @@ app.post('/student/deleteUser', async (req, res) => {
 });
 
 app.post('/student/updateUser', async (req, res) => {
+  const token = req.cookies.token;
+  if (!checkToken(token)) {
+    res.json({
+      status: FAIL,
+      extraMessage: INVALIE_TOKEN
+    });
+    return;
+  }
+  
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -174,6 +190,15 @@ app.post('/student/updateUser', async (req, res) => {
 });
 
 app.post('/student/addUser', async (req, res) => {
+  const token = req.cookies.token;
+  if (!checkToken(token)) {
+    res.json({
+      status: FAIL,
+      extraMessage: INVALIE_TOKEN
+    });
+    return;
+  }
+
   const token = req.cookies.token;
   if (!(checkToken(token))) {
     res.json({
