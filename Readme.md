@@ -11,8 +11,11 @@ windows的同学建议用xshell
 在linux上先搭建node、nginx、mongo环境（阿里云的文档很丰富）
 
 
-因为要开多个shell 所以建议用screen进行管理，
+因为要开多个shell 所以建议用screen进行管理
+
 https://www.cnblogs.com/mchina/archive/2013/01/30/2880680.html
+
+关闭shell screen -X -S [session # you want to kill] quit
 
 
 nginx主要用于做静态文件服务器和反向代理（请求转发），
