@@ -32,7 +32,7 @@ app.use('*',function (req, res, next) {
 });
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(['/student/addUser', '/student/deleteUser', '/student/updateUser'], (req, res, next) => {
+app.use(['/student/addUser', '/student/deleteUser', '/student/updateUser'], async (req, res, next) => {
   const token = await checkToken(req.cookies.token);
   if (!token) {
     res.json({
