@@ -176,7 +176,7 @@ app.post('/student/updateUser', async (req, res) => {
     });
     return;
   }
-  
+
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -199,14 +199,6 @@ app.post('/student/addUser', async (req, res) => {
     return;
   }
 
-  const token = req.cookies.token;
-  if (!(checkToken(token))) {
-    res.json({
-      status: FAIL,
-      extraMessage: INVALIE_TOKEN
-    })
-    return;
-  }
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
