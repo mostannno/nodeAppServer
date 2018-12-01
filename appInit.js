@@ -23,7 +23,7 @@ userModel.saveUser = async (User) => {
   return Err;
 };
 
-userModel.delete = async (studentNumber) => {
+userModel.deleteUser = async (studentNumber) => {
   let Err = false;
   await userModel.find({ studentNumber }, (err, result) => {
     if (err) Err = error(searchError);
@@ -40,10 +40,11 @@ userModel.updateUser = async (studentNumber, data) => {
   let Err = false;
   await userModel.find({ studentNumber }, (err, result) => {
     if (err) Err = error(searchError);
-    if (result.length) Err = error(unExist);
+    if (!result.length) Err = error(unExist);
   });
   if (Err) return Err;
-  await userModel.update({ studentNumber }, data, (err) => {
+  console.log(studentNumber, data);
+  await userModel.updateOne({ studentNumber }, data, (err) => {
     if (err) Err = err;
   });
   return Err;

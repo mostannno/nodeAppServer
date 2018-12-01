@@ -36,15 +36,6 @@ mongooseInit();
 appInit(app);
 
 app.post('/student/login', (req, res) => {
-  // 检查是否已有有效token
-  const token = req.cookies.token;
-  if ((checkToken(token))) {
-    res.json({
-      status: SUCCESS,
-    })
-    return;
-  }
-
   // 参数校验
   let manager = req.body;
   if (!manager.pwd || !manager.name) {
@@ -84,6 +75,52 @@ app.post('/student/login', (req, res) => {
   });
 });
 
+app.get('/student/preLogin', (req, res) => {
+  // 检查是否已有有效token
+  const token = req.cookies.token;
+  if ((checkToken(token))) {
+    let name =  null;
+    try {
+      name = decrypt(token, LOGIN_KEY);
+      res.json({
+        status: SUCCESS,
+        name
+      });
+    } catch(e) {
+      res.json({
+        status: FAIL
+      });
+    }
+  } else {
+    res.json({
+      status: FAIL
+    });
+  }
+});
+
+app.post('/student/search', (req, res) => {
+  const keywrod = req.body.keywrod;
+  const reg = new RegExp(keywrod, 'i');
+  app.userModel.find({
+    $or: [
+      { name: { $regex: reg } },
+      { studentNumber: { $regex: reg } },
+      { major: { $regex: reg } },
+      { enrollmentDate: { $regex: reg } }
+    ]
+  }, (err, results) => {
+    if (err) {
+      res.status(500);
+      res.send(null);
+    } else {
+      res.json({
+        status: SUCCESS,
+        users: results
+      })
+    }
+  });
+});
+
 app.post('/student/submit', async (req, res) => {
   // 参数校验
   let manager = req.body;
@@ -115,14 +152,15 @@ app.get('/student/getAllUser', (req, res) => {
   });
 });
 
-app.post('/student/deleteUser', (req, res) => {
+app.post('/student/deleteUser', async (req, res) => {
   const token = req.cookies.token;
   const { studentNumber } = req.body;
-  const resp = app.userModel.delete(studentNumber);
+
+  const resp = await app.userModel.deleteUser(studentNumber);
   errorHandler(resp, res);
 });
 
-app.post('/student/updateUser', (req, res) => {
+app.post('/student/updateUser', async (req, res) => {
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -131,7 +169,7 @@ app.post('/student/updateUser', (req, res) => {
     return;
   }
 
-  const resp = await app.userModel.update(user.studentNumber, user.toJS());
+  const resp = await app.userModel.updateUser(user.studentNumber, user.toJS());
   errorHandler(resp, res);
 });
 
@@ -154,14 +192,15 @@ app.post('/student/addUser', async (req, res) => {
 
   // 保存
   const resp = await app.userModel.saveUser(user.toJS());
-  errorHandler(resp);
+  errorHandler(resp, res);
 });
 
 async function checkToken(token) {
   let flag = true;
   if (!token) flag = false;
+  let name = '';
   try {
-    const name = decrypt(token, LOGIN_KEY);
+    name = decrypt(token, LOGIN_KEY);
   } catch (e) {
     flag = false;
   }
