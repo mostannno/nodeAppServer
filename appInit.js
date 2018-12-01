@@ -4,7 +4,7 @@ const ManagerSchema = require('./schema/manager');
 
 const alreadyExist = 'User Already Exsit'
 const searchError = 'Search Failed';
-const unExist = 'User unexist';
+const unExist = 'User not exist';
 const mongoError = 'Mongod Error';
 const error = errType => new Error(errType); 
 
@@ -20,31 +20,34 @@ userModel.saveUser = async (User) => {
   await user.save((err) => {
     if (err) Err = error(mongoError);
   });
-  if (Err) return Err;
+  return Err;
 };
 
-userModel.delete = (id) => {
-  userModel.find({ id }, (err, result) => {
-    console.log(err, result);
-    if (err) return error(searchError);
-    if (!result.length) return error(unExist);
+userModel.delete = async (studentNumber) => {
+  let Err = false;
+  await userModel.find({ studentNumber }, (err, result) => {
+    if (err) Err = error(searchError);
+    if (!result.length) Err = error(unExist);
   });
-  userModel.deleteOne({ id }, (err) => {
-    if (err) return error(mongoError);
+  if (Err) return Err;
+  await userModel.deleteOne({ studentNumber }, (err) => {
+    if (err) Err = error(mongoError);
   });
+  return Err;
 }
 
-userModel.updateUser = (id, data) => {
-  userModel.find({ id }, (err, result) => {
-    if (err) return error(searchError);
-    if (result.length) return error(unExist);
+userModel.updateUser = async (studentNumber, data) => {
+  let Err = false;
+  await userModel.find({ studentNumber }, (err, result) => {
+    if (err) Err = error(searchError);
+    if (result.length) Err = error(unExist);
   });
-  userModel.update({ id }, data, (err) => {
-    if (err) return err;
+  if (Err) return Err;
+  await userModel.update({ studentNumber }, data, (err) => {
+    if (err) Err = err;
   });
+  return Err;
 }
-
-
 
 const managerModel = mongoose.model('Manager', ManagerSchema);
 managerModel.saveManager = async (Manager) => {
@@ -58,12 +61,12 @@ managerModel.saveManager = async (Manager) => {
   await manager.save((err) => {
     if (err) Err = error(mongoError);
   });
-  if (Err) return Err;
+  return Err;
 }
-
 
 module.exports = (app) => {
   app.alreadyExist = alreadyExist;
+  app.unExist = unExist;
   app.userModel = userModel;
   app.managerModel = managerModel;
 }

@@ -12,27 +12,39 @@ const { encrypt, decrypt } = require('./util/crypt');
 const User = require('./models/User');
 const Manager = require('./models/Manager');
 
-const FAIL = 0, SUCCESS = 1, LOGIN_KEY = crypto.createHash('md5').digest();;
+const FAIL = 0, SUCCESS = 1, LOGIN_KEY = crypto.createHash('md5').digest();
+const INVALIE_TOKEN = 'token invalid';
 
 const app = express();
 
-app.use('*',function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*'); 
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Content-Length, Authorization, Accept');
-  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  if (req.method == 'OPTIONS') {
-    res.status(200);
-    res.send(null);
-  } else {
-    next();
-  }
-});
+// 因为是nginx代理的请求 所以不需要在这里设置
+// app.use('*',function (req, res, next) {
+//   res.header('Access-Control-Allow-Origin', '*'); 
+//   res.header('Access-Control-Allow-Credentials', 'true'); 
+//   res.header('Access-Control-Allow-Headers', 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type');
+//   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+//   if (req.method == 'OPTIONS') {
+//     res.status(200);
+//     res.send(null);
+//   } else {
+//     next();
+//   }
+// });
 app.use(bodyParser.json());
 app.use(cookieParser());
 mongooseInit();
 appInit(app);
 
 app.post('/student/login', (req, res) => {
+  // 检查是否已有有效token
+  const token = req.cookies.token;
+  if ((checkToken(token))) {
+    res.json({
+      status: SUCCESS,
+    })
+    return;
+  }
+
   // 参数校验
   let manager = req.body;
   if (!manager.pwd || !manager.name) {
@@ -58,10 +70,11 @@ app.post('/student/login', (req, res) => {
     const hmac = crypto.createHmac('sha256', results[0].key);
     if (hmac.update(manager.pwd).digest('hex') === results[0].pwd) {
       const token = encrypt(manager.name, LOGIN_KEY);
-      res.cookie('token', token);
-      res.json({
+      // 一个小时后过期
+      res.cookie('token', token, { 'expires': new Date(Date.now() +  1000 * 60 * 60) });
+      res.send(JSON.stringify({
         status: SUCCESS
-      })
+      }));
     } else {
       res.json({
         status: FAIL,
@@ -86,21 +99,9 @@ app.post('/student/submit', async (req, res) => {
   const hmac = crypto.createHmac('sha256', key);
   const pwd = hmac.update(manager.pwd).digest('hex');
   manager = manager.set('key', key).set('pwd', pwd);
-  try {
-    const resp = await app.managerModel.saveManager(manager.toJS());
-    if (resp) throw resp;
-    res.json({ status: SUCCESS });
-  } catch(e) {
-    if (e.message = app.alreadyExist) {
-      res.json({
-        status: FAIL,
-        extraMessage: app.alreadyExist
-      });
-      return;
-    }
-    res.status(500);
-    res.send(null);
-  }
+
+  const resp = await app.managerModel.saveManager(manager.toJS());
+  errorHandler(resp, res);
 });
 
 app.get('/student/getAllUser', (req, res) => {
@@ -115,12 +116,34 @@ app.get('/student/getAllUser', (req, res) => {
 });
 
 app.post('/student/deleteUser', (req, res) => {
-  const { managerId, userId } = req.body;
+  const token = req.cookies.token;
+  const { studentNumber } = req.body;
+  const resp = app.userModel.delete(studentNumber);
+  errorHandler(resp, res);
+});
 
+app.post('/student/updateUser', (req, res) => {
+  let user = req.body;
+  user = User.fromJS(user);
+  if (!user) {
+    res.status(400);
+    res.json({ status: FAIL });
+    return;
+  }
+
+  const resp = await app.userModel.update(user.studentNumber, user.toJS());
+  errorHandler(resp, res);
 });
 
 app.post('/student/addUser', async (req, res) => {
-  console.log('cookies', req.signedCookies, req.cookies.token);
+  const token = req.cookies.token;
+  if (!(checkToken(token))) {
+    res.json({
+      status: FAIL,
+      extraMessage: INVALIE_TOKEN
+    })
+    return;
+  }
   let user = req.body;
   user = User.fromJS(user);
   if (!user) {
@@ -130,21 +153,40 @@ app.post('/student/addUser', async (req, res) => {
   }
 
   // 保存
-  try {
-    const resp = await app.userModel.saveUser(user.toJS());
-    if (resp) throw resp;
-    res.json({ status: SUCCESS });
-  } catch(e) {
-    if (e.message = app.alreadyExist) {
-      res.json({
-        status: FAIL,
-        extraMessage: app.alreadyExist
-      });
-      return;
-    }
-    res.status(500);
-    res.json({ status: FAIL });
-  }
+  const resp = await app.userModel.saveUser(user.toJS());
+  errorHandler(resp);
 });
+
+async function checkToken(token) {
+  let flag = true;
+  if (!token) flag = false;
+  try {
+    const name = decrypt(token, LOGIN_KEY);
+  } catch (e) {
+    flag = false;
+  }
+  await app.managerModel.find({ name }, (err, result) => {
+    if (err || !result.length) flag = false;
+  });
+  return flag;
+}
+
+function errorHandler(err, res) {
+  if (!err) {
+    res.json({
+      status: SUCCESS
+    });
+    return;
+  }
+  if (err.message === app.unExist || err.message === app.alreadyExist) {
+    res.json({
+      status: FAIL,
+      extraMessage: err.message
+    })
+  } else {
+    res.status(500);
+    res.send(null);
+  }
+}
 
 const server = app.listen(8080);
